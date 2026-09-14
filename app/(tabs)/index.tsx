@@ -29,7 +29,7 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
-  wrap: { justifyContent: 'space-between', gap: 8 }, brand: { alignItems: 'center' },
+  wrap: { justifyContent: 'space-between', gap: 8, paddingBottom: 92 }, brand: { alignItems: 'center' },
   kicker: { fontFamily: 'Nunito_800ExtraBold', fontSize: 9, letterSpacing: 1.45, color: C.red, textAlign: 'center' },
   title: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 57, lineHeight: 64, color: C.brown, textAlign: 'center', marginTop: 8, paddingTop: 5, textShadowColor: '#F3B850', textShadowOffset: { width: 4, height: 5 }, textShadowRadius: 0 },
   titleCompact: { fontSize: 49, lineHeight: 55 }, tag: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: C.muted, textAlign: 'center', marginTop: 4 }, tagStrong: { color: C.brown },

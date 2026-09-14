@@ -5,7 +5,8 @@ import * as Haptics from 'expo-haptics';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen } from '@/components/Screen';
 import { GameButton } from '@/components/GameButton';
-import { Turkey } from '@/components/Turkey';
+import { AIRBORNE_TURKEY_ASSETS, Turkey } from '@/components/Turkey';
+import { TurkeyTrackIcon } from '@/components/TurkeyTrackIcon';
 import { C } from '@/constants/colours';
 import { TURKEY_POSITIONS } from '@/constants/turkeyPositions';
 import { useGameStore } from '@/store/gameStore';
@@ -25,8 +26,7 @@ function FeatherBurst({ burst }: { burst:number }) {
   return <View pointerEvents="none" style={s.featherOrigin}>{feathers.map((f,i)=><Animated.Text key={i} style={[s.feather,{opacity:f.o,transform:[{translateX:f.x},{translateY:f.y},{rotate:f.r.interpolate({inputRange:[0,500],outputRange:['0deg','500deg']})}]}]}>⌁</Animated.Text>)}</View>;
 }
 
-const AIRBORNE_UP=require('../../assets/turkeys/airborne-wings-up.png');
-const AIRBORNE_DOWN=require('../../assets/turkeys/airborne-wings-down.png');
+const [AIRBORNE_UP,AIRBORNE_DOWN]=AIRBORNE_TURKEY_ASSETS;
 
 function FlyingTurkey({position,size,xy,angle,flying,landed}:{position:TurkeyPosition;size:number;xy:Animated.ValueXY;angle:Animated.Value;flying:boolean;landed:boolean}){
   const flap=useRef(new Animated.Value(0)).current;
@@ -34,7 +34,7 @@ function FlyingTurkey({position,size,xy,angle,flying,landed}:{position:TurkeyPos
   return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}>{flying&&!landed?<View style={s.airborneFrames}><Animated.Image source={AIRBORNE_UP} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[1,1,0,0]})}]}/><Animated.Image source={AIRBORNE_DOWN} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[0,0,1,1]})}]}/></View>:<Turkey position={position} size={size}/>}</Animated.View>;
 }
 
-function GameTabs(){const tabs=[{label:'Home',icon:'paw-outline' as const,path:'/' as const},{label:'How to Play',icon:'trail-sign-outline' as const,path:'/(tabs)/how-to-play' as const},{label:'Turkeydex',icon:'library-outline' as const,path:'/(tabs)/turkeydex' as const},{label:'Settings',icon:'options-outline' as const,path:'/(tabs)/settings' as const}];return <View style={s.tabs}>{tabs.map(tab=><Pressable key={tab.label} style={s.tab} onPress={()=>router.replace(tab.path)}><Ionicons name={tab.icon} size={20} color={C.muted}/><Text style={s.tabLabel}>{tab.label}</Text></Pressable>)}</View>}
+function GameTabs(){const tabs=[{label:'Home',icon:null,path:'/' as const},{label:'How to Play',icon:'trail-sign-outline' as const,path:'/(tabs)/how-to-play' as const},{label:'Turkeydex',icon:'library-outline' as const,path:'/(tabs)/turkeydex' as const},{label:'Settings',icon:'options-outline' as const,path:'/(tabs)/settings' as const}];return <View style={[s.tabs,{height:62,marginBottom:-22,paddingTop:4,paddingBottom:13}]}>{tabs.map(tab=><Pressable key={tab.label} style={s.tab} onPress={()=>router.replace(tab.path)}>{tab.icon?<Ionicons name={tab.icon} size={20} color={C.muted}/>:<TurkeyTrackIcon color={C.muted} size={20}/>}<Text style={s.tabLabel}>{tab.label}</Text></Pressable>)}</View>}
 
 export default function Play(){
   const game=useGameStore(),settings=useSettingsStore(),{play:playAudio,playGobble}=useGameAudio();
