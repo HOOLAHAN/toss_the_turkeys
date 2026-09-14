@@ -1,0 +1,5 @@
+import { TURKEY_POSITION_LIST } from '@/constants/turkeyPositions';
+import { TurkeyPosition, TurkeyToss } from '@/types/turkey';
+const total=TURKEY_POSITION_LIST.reduce((sum,p)=>sum+p.probability,0);
+export function generateTurkeyPosition(randomValue:number=Math.random()):TurkeyPosition { const value=Math.max(0,Math.min(.999999999,randomValue))*total; let cumulative=0; for(const p of TURKEY_POSITION_LIST){ cumulative+=p.probability; if(value<cumulative)return p.id; } return TURKEY_POSITION_LIST.at(-1)!.id; }
+export function generateTurkeyToss(rng:()=>number=Math.random):TurkeyToss { return {turkeyA:generateTurkeyPosition(rng()),turkeyB:generateTurkeyPosition(rng())}; }

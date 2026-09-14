@@ -1,0 +1,3 @@
+import { PropsWithChildren } from 'react'; import { SafeAreaView,ScrollView,StyleSheet,ViewStyle } from 'react-native'; import { LinearGradient } from 'expo-linear-gradient'; import { C } from '@/constants/colours';
+export function Screen({children,scroll=true,style}:{children:React.ReactNode;scroll?:boolean;style?:ViewStyle}){const content=scroll?<ScrollView contentContainerStyle={[s.content,style]} showsVerticalScrollIndicator={false}>{children}</ScrollView>:<SafeAreaView style={[s.content,s.fill,style]}>{children}</SafeAreaView>;return <LinearGradient colors={[C.cream,C.parchment]} style={s.fill}>{content}</LinearGradient>}
+const s=StyleSheet.create({fill:{flex:1},content:{padding:20,paddingBottom:38}});

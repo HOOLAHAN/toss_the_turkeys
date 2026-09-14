@@ -1,0 +1,3 @@
+import { Pressable,StyleSheet,Text,View } from 'react-native'; import { router } from 'expo-router'; import { C } from '@/constants/colours';
+export function Header({title}:{title:string}){return <View style={s.row}><Pressable onPress={()=>router.back()} hitSlop={12}><Text style={s.back}>‹</Text></Pressable><Text style={s.title}>{title}</Text><View style={s.spacer}/></View>}
+const s=StyleSheet.create({row:{height:54,flexDirection:'row',alignItems:'center'},back:{fontSize:44,color:C.brown,lineHeight:48},title:{flex:1,textAlign:'center',fontFamily:'Baloo2_700Bold',fontSize:25,color:C.ink},spacer:{width:24}});

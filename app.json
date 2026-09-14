@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Toss the Turkeys",
+    "slug": "toss-the-turkeys",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "tossturkeys",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F7E8C8"
+      }
+    },
+    "ios": {
+      "supportsTablet": true
+    }
+  }
+}
