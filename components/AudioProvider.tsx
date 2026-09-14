@@ -9,11 +9,11 @@ const AudioContext = createContext<{ play: (sound: GameSound) => void }>({ play:
 export function AudioProvider({ children }: { children: ReactNode }) {
   const enabled = useSettingsStore(state => state.sound);
   const players: SoundPlayers = {
-    toss: useAudioPlayer(require('../assets/sounds/toss.wav')),
+    toss: useAudioPlayer(require('../assets/sounds/turkey-gobble.wav')),
     land: useAudioPlayer(require('../assets/sounds/land.wav')),
     bank: useAudioPlayer(require('../assets/sounds/bank.wav')),
-    plucked: useAudioPlayer(require('../assets/sounds/plucked.wav')),
-    thanksgiving: useAudioPlayer(require('../assets/sounds/thanksgiving.wav')),
+    plucked: useAudioPlayer(require('../assets/sounds/turkey-gobble.wav')),
+    thanksgiving: useAudioPlayer(require('../assets/sounds/turkey-gobble.wav')),
   };
   useEffect(() => { setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(() => undefined); }, []);
   const play = (sound: GameSound) => {

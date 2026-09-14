@@ -16,7 +16,7 @@ export default function Home() {
         <Text style={s.tag}>Risk it. Bank it. <Text style={s.tagStrong}>Don't get plucked.</Text></Text>
       </View>
       <View style={[s.hero, compact && s.heroCompact]}>
-        <View style={s.sunOuter} /><View style={s.sun} /><View style={s.groundShadow} />
+        <View style={s.sunOuter} /><View style={s.sun} />
         <Turkey position="wattle_wobble" size={compact ? 220 : 255} />
         <View style={s.badge}><Text style={s.badgeText}>READY TO RISK IT?</Text></View>
       </View>
@@ -35,7 +35,6 @@ const s = StyleSheet.create({
   titleCompact: { fontSize: 49, lineHeight: 55 }, tag: { fontFamily: 'Nunito_700Bold', fontSize: 14, color: C.muted, textAlign: 'center', marginTop: 4 }, tagStrong: { color: C.brown },
   hero: { height: 275, alignItems: 'center', justifyContent: 'center' }, heroCompact: { height: 215 },
   sunOuter: { position: 'absolute', width: 236, height: 236, borderRadius: 118, borderWidth: 1, borderColor: 'rgba(185,45,43,.13)' }, sun: { position: 'absolute', width: 215, height: 215, borderRadius: 108, backgroundColor: '#F7CC6C' },
-  groundShadow: { position: 'absolute', bottom: 23, width: 170, height: 20, borderRadius: 50, backgroundColor: 'rgba(42,23,19,.12)', transform: [{ scaleX: 1.25 }] },
   badge: { position: 'absolute', right: 2, bottom: 23, backgroundColor: C.brown, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, transform: [{ rotate: '4deg' }] }, badgeText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 8, letterSpacing: 1, color: C.gold },
   actions: { gap: 8 }, tabHint: { fontFamily: 'Nunito_700Bold', fontSize: 10, lineHeight: 15, color: C.muted, textAlign: 'center', paddingHorizontal: 25 },
 });

@@ -25,7 +25,7 @@ npm run typecheck
 - `components/Turkey.tsx` is the rendering boundary. It maps domain positions to 2D art; game rules never know about image files.
 - `app/` contains Expo Router screens for home, setup, play, winner, Turkeydex, instructions, and settings.
 - `assets/turkeys/` contains the six generated transparent character poses.
-- `assets/sounds/` contains CC0 interface cues by Kenney for tossing, landing, banking, Plucked It, and Thanksgiving.
+- `assets/sounds/` contains CC0 interface cues by Kenney plus a public-domain turkey gobble distributed by Adafruit.
 
 Each turkey is rolled independently from the centrally configured normalized weights in `constants/turkeyPositions.ts`. Scoring is a pure function in `game/scoring.ts`: mixed common poses pluck the turn; common doubles score 1; scoring poses add; scoring doubles score 4× base value. Double Wattle Wobble scores 60 and presents as Thanksgiving.
 
