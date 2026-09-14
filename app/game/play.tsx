@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import { Animated, LayoutChangeEvent, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Screen } from '@/components/Screen';
 import { GameButton } from '@/components/GameButton';
@@ -10,115 +9,63 @@ import { C } from '@/constants/colours';
 import { TURKEY_POSITIONS } from '@/constants/turkeyPositions';
 import { useGameStore } from '@/store/gameStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { TurkeyPosition } from '@/types/turkey';
+import { TurkeyPosition, TossScoreResult } from '@/types/turkey';
 import { useGameAudio } from '@/components/AudioProvider';
 import { generateTurkeyToss } from '@/game/random';
 import { calculateTossScore } from '@/game/scoring';
 
-function TossingTurkey({ side, position, tossing, size }: { side: 1 | -1; position: TurkeyPosition; tossing: boolean; size: number }) {
-  const y = useSharedValue(0), rotation = useSharedValue(0), x = useSharedValue(0), scale = useSharedValue(1);
-  useEffect(() => {
-    if (!tossing) return;
-    y.value = withSequence(withTiming(-82, { duration: 400, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 690, easing: Easing.bounce }));
-    rotation.value = withSequence(withTiming(side * 420, { duration: 720 }), withTiming(side * 360, { duration: 370 }));
-    x.value = withSequence(withTiming(side * 18, { duration: 400 }), withTiming(0, { duration: 690 }));
-    scale.value = withSequence(withTiming(1.08, { duration: 400 }), withTiming(1, { duration: 690 }));
-  }, [side, tossing, x, y, rotation, scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }, { translateX: x.value }, { rotate: `${rotation.value}deg` }, { scale: scale.value }] }));
-  return <Animated.View style={style}><Turkey position={position} size={size} /></Animated.View>;
+type Body = { x:number; y:number; vx:number; vy:number; angle:number; spin:number; grounded:boolean };
+const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
+
+function FeatherBurst({ burst }: { burst:number }) {
+  const feathers=useRef(Array.from({length:12},()=>({x:new Animated.Value(0),y:new Animated.Value(0),r:new Animated.Value(0),o:new Animated.Value(0)}))).current;
+  useEffect(()=>{if(!burst)return; feathers.forEach((f,i)=>{f.x.setValue(0);f.y.setValue(0);f.r.setValue(0);f.o.setValue(1);const a=Math.PI*2*i/feathers.length+Math.random()*.4,d=45+Math.random()*75;Animated.parallel([Animated.timing(f.x,{toValue:Math.cos(a)*d,duration:850,useNativeDriver:true}),Animated.timing(f.y,{toValue:Math.sin(a)*d+35,duration:850,useNativeDriver:true}),Animated.timing(f.r,{toValue:500,duration:850,useNativeDriver:true}),Animated.sequence([Animated.delay(280),Animated.timing(f.o,{toValue:0,duration:570,useNativeDriver:true})])]).start();});},[burst,feathers]);
+  return <View pointerEvents="none" style={s.featherOrigin}>{feathers.map((f,i)=><Animated.Text key={i} style={[s.feather,{opacity:f.o,transform:[{translateX:f.x},{translateY:f.y},{rotate:f.r.interpolate({inputRange:[0,500],outputRange:['0deg','500deg']})}]}]}>⌁</Animated.Text>)}</View>;
 }
 
-export default function Play() {
-  const game = useGameStore();
-  const settings = useSettingsStore();
-  const { play: playAudio, playGobble } = useGameAudio();
-  const { height, width } = useWindowDimensions();
-  const current = game.players[game.currentPlayerIndex];
-  const result = game.lastToss;
-  const [displayedToss, setDisplayedToss] = useState(result ? { turkeyA: result.turkeyA, turkeyB: result.turkeyB } : null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const compact = height < 760;
-  const turkeySize = Math.min(compact ? 136 : 154, width * 0.39);
+function FlyingTurkey({position,size,xy,angle}:{position:TurkeyPosition;size:number;xy:Animated.ValueXY;angle:Animated.Value}){
+  return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}><Turkey position={position} size={size}/></Animated.View>;
+}
 
-  useEffect(() => { if (game.status === 'finished') router.replace('/game/winner'); }, [game.status]);
-  useEffect(() => { if (!result) setDisplayedToss(null); }, [result]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+export default function Play(){
+  const game=useGameStore(),settings=useSettingsStore(),{play:playAudio,playGobble}=useGameAudio();
+  const {height,width}=useWindowDimensions(),compact=height<760,turkeySize=Math.min(compact?126:144,width*.37);
+  const current=game.players[game.currentPlayerIndex];
+  const [shown,setShown]=useState<{turkeyA:TurkeyPosition;turkeyB:TurkeyPosition}|null>(game.lastToss);
+  const [result,setResult]=useState<TossScoreResult|null>(game.lastToss);
+  const [arena,setArena]=useState({width:width-40,height:340}),[drag,setDrag]=useState({x:0,y:0,active:false}),[burst,setBurst]=useState(0);
+  const frame=useRef<number|null>(null),bodies=useRef<Body[]>([]),xy=useRef([new Animated.ValueXY(),new Animated.ValueXY()]).current,angles=useRef([new Animated.Value(0),new Animated.Value(0)]).current;
+  const floor=arena.height-(compact?88:96);
+  const rest=(a=arena)=>{const y=a.height-(compact?88:96)-turkeySize,xs=[a.width*.34-turkeySize/2,a.width*.66-turkeySize/2];bodies.current=xs.map(x=>({x,y,vx:0,vy:0,angle:0,spin:0,grounded:true}));xs.forEach((x,i)=>{xy[i].setValue({x,y});angles[i].setValue(0);});};
+  useEffect(()=>rest(),[arena.width,arena.height,turkeySize]);
+  useEffect(()=>{if(game.status==='finished')router.replace('/game/winner');},[game.status]);
+  useEffect(()=>()=>{if(frame.current!==null)cancelAnimationFrame(frame.current);},[]);
 
-  const toss = () => {
-    const generated = generateTurkeyToss();
-    const pendingResult = calculateTossScore(generated.turkeyA, generated.turkeyB);
-    playGobble();
-    if (settings.haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    game.beginToss();
-    const landingDelay = settings.animations ? 1100 : 40;
-    const revealDelay = settings.animations ? 1300 : 100;
-    timers.current.push(setTimeout(() => {
-      setDisplayedToss(generated);
-      if (!pendingResult.isPlucked && !pendingResult.isThanksgiving) playAudio('land');
-    }, landingDelay));
-    timers.current.push(setTimeout(() => {
-      game.resolveToss(pendingResult);
-      if (pendingResult.isPlucked) playAudio('plucked');
-      if (pendingResult.isThanksgiving) playAudio('thanksgiving');
-      if (!settings.haptics) return;
-      if (pendingResult.isPlucked) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      else if (pendingResult.isThanksgiving) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      else if (pendingResult.points >= 10) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }, revealDelay));
+  const finish=(pending:TossScoreResult)=>{frame.current=null;setBurst(v=>v+1);playAudio(pending.isPlucked?'plucked':pending.isThanksgiving?'thanksgiving':'land');game.resolveToss(pending);setResult(pending);if(settings.haptics){if(pending.isPlucked)Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);else if(pending.isThanksgiving)Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);else Haptics.impactAsync(pending.points>=10?Haptics.ImpactFeedbackStyle.Medium:Haptics.ImpactFeedbackStyle.Light);}};
+  const launch=(swipeX=0,swipeY=-700)=>{
+    if(game.status==='animating')return;
+    const generated=generateTurkeyToss(),pending=calculateTossScore(generated.turkeyA,generated.turkeyB);setShown(generated);setResult(null);setDrag({x:0,y:0,active:false});setBurst(v=>v+1);playGobble();game.beginToss();if(settings.haptics)Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    bodies.current.forEach((b,i)=>{b.vx=clamp(swipeX,-650,650)*.72+(i?105:-105);b.vy=clamp(swipeY,-1500,-430)*(i?.94:1.05);b.spin=clamp(swipeX*.5+(i?260:-260),-680,680);b.grounded=false;});
+    let previous=performance.now(),started=previous,quiet=0,lastFeather=0;
+    const tick=(now:number)=>{const dt=Math.min((now-previous)/1000,.032);previous=now;const maxX=arena.width-turkeySize,floorY=floor-turkeySize;let impact=false;
+      for(const b of bodies.current){b.vy+=1180*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.angle+=b.spin*dt;if(b.x<0||b.x>maxX){b.x=clamp(b.x,0,maxX);b.vx*=-.7;b.spin*=-.82;impact=true;}if(b.y<0){b.y=0;b.vy=Math.abs(b.vy)*.55;impact=true;}if(b.y>=floorY){b.y=floorY;if(b.vy>75){b.vy*=-.58;b.vx*=.84;b.spin*=.76;impact=true;}else{b.vy=0;b.vx*=.9;b.spin*=.86;b.grounded=true;}}else b.grounded=false;}
+      const [a,b]=bodies.current,r=turkeySize*.31,dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1;if(dist<r*2){const nx=dx/dist,ny=dy/dist,over=r*2-dist;a.x-=nx*over/2;a.y-=ny*over/2;b.x+=nx*over/2;b.y+=ny*over/2;const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(rel<0){const force=-rel*.78;a.vx-=force*nx;a.vy-=force*ny;b.vx+=force*nx;b.vy+=force*ny;a.spin-=rel;b.spin+=rel;impact=true;}}
+      bodies.current.forEach((b,i)=>{xy[i].setValue({x:b.x,y:b.y});angles[i].setValue(b.angle);});if(impact&&now-lastFeather>300){lastFeather=now;setBurst(v=>v+1);}const settled=bodies.current.every(b=>b.grounded&&Math.abs(b.vx)<10&&Math.abs(b.spin)<12);if(settled){if(!quiet)quiet=now;}else quiet=0;if((quiet&&now-quiet>280)||now-started>6000){finish(pending);return;}frame.current=requestAnimationFrame(tick);};frame.current=requestAnimationFrame(tick);
   };
-
-  const bank = () => { playAudio('bank'); game.bank(); };
-
-  return (
-    <Screen scroll={false} style={s.screen}>
-      <View style={s.headerRow}>
-        <Pressable onPress={() => router.replace('/')} hitSlop={12} style={s.close}><Text style={s.closeText}>×</Text></Pressable>
-        <View style={s.heading}><Text style={s.eyebrow}>FIRST TO {game.targetScore}</Text><Text style={s.turn}>{current.name.toUpperCase()}'S TURN</Text></View>
-        <View style={s.turnBadge}><Text style={s.turnBadgeText}>#{game.totalTurns + 1}</Text></View>
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scores}>
-        {game.players.map((player, index) => <View key={player.id} style={[s.scoreChip, index === game.currentPlayerIndex && s.activeChip]}><Text style={[s.chipName, index === game.currentPlayerIndex && s.activeText]} numberOfLines={1}>{player.name}</Text><Text style={[s.chipScore, index === game.currentPlayerIndex && s.activeText]}>{player.score}</Text></View>)}
-      </ScrollView>
-
-      <View style={s.counters}>
-        <View style={s.counterHalf}><Text style={s.counterLabel}>SAFE IN THE BANK</Text><Text style={s.counter}>{current.score}</Text></View>
-        <View style={s.divider} />
-        <View style={s.counterHalf}><Text style={s.counterLabel}>AT RISK</Text><Text style={[s.counter, s.risk]}>{game.turnScore}</Text></View>
-      </View>
-
-      <View style={[s.arena, compact && s.arenaCompact]}>
-        <View style={s.arenaHalo} /><View style={s.table} /><View style={s.tableEdge} />
-        <View style={s.turkeys}>
-          <TossingTurkey side={-1} tossing={game.status === 'animating' && settings.animations} position={displayedToss?.turkeyA ?? 'gobbler'} size={turkeySize} />
-          <TossingTurkey side={1} tossing={game.status === 'animating' && settings.animations} position={displayedToss?.turkeyB ?? 'turkey_trot'} size={turkeySize} />
-        </View>
-        <View style={[s.resultCard, result?.isPlucked && s.resultDanger, result?.isThanksgiving && s.resultGold]}>
-          {game.status === 'animating' ? <><Text style={s.flying}>FLYING FOWL</Text><Text style={s.resultHint}>Hold onto your feathers…</Text></> : result ? <><Text style={[s.resultTitle, result.isPlucked && s.lightText]}>{result.title}</Text><Text style={[s.names, result.isPlucked && s.lightMuted]}>{TURKEY_POSITIONS[result.turkeyA].name}  +  {TURKEY_POSITIONS[result.turkeyB].name}</Text><Text style={[s.points, result.isPlucked && s.lightText]}>{result.isPlucked ? 'TURN SCORE LOST' : `+${result.points}`}</Text></> : <><Text style={s.ready}>READY TO TOSS?</Text><Text style={s.resultHint}>Land points. Bank before you're plucked.</Text></>}
-        </View>
-        {result?.isThanksgiving && <Text style={s.confetti}>✨  🪶  🎉  🪶  ✨</Text>}
-      </View>
-
-      <View style={s.actions}>
-        <GameButton title={game.status === 'animating' ? 'TOSSING…' : 'TOSS THE TURKEYS'} onPress={toss} disabled={game.status === 'animating'} />
-        <GameButton title={game.turnScore ? `BANK ${game.turnScore} POINTS` : 'BANK POINTS'} variant="secondary" onPress={bank} disabled={!game.turnScore || game.status === 'animating'} />
-      </View>
-    </Screen>
-  );
+  const pan=useMemo(()=>PanResponder.create({onStartShouldSetPanResponder:()=>game.status!=='animating',onMoveShouldSetPanResponder:(_,g)=>game.status!=='animating'&&Math.abs(g.dy)>5,onPanResponderGrant:()=>setDrag({x:0,y:0,active:true}),onPanResponderMove:(_,g)=>setDrag({x:g.dx,y:Math.min(g.dy,0),active:true}),onPanResponderRelease:(_,g)=>g.dy<-28?launch(clamp(g.vx*650,-650,650),clamp(g.vy*900,-1500,-430)):setDrag({x:0,y:0,active:false}),onPanResponderTerminate:()=>setDrag({x:0,y:0,active:false})}),[game.status,arena,turkeySize,floor]);
+  const layout=(e:LayoutChangeEvent)=>{const {width:w,height:h}=e.nativeEvent.layout;if(w&&h)setArena({width:w,height:h});};
+  const bank=()=>{playAudio('bank');game.bank();setResult(null);rest();};
+  return <Screen scroll={false} style={s.screen}>
+    <View style={s.headerRow}><Pressable onPress={()=>router.replace('/')} hitSlop={12} style={s.close}><Text style={s.closeText}>×</Text></Pressable><View style={s.heading}><Text style={s.eyebrow}>FIRST TO {game.targetScore}</Text><Text style={s.turn}>{current.name.toUpperCase()}'S TURN</Text></View><View style={s.turnBadge}><Text style={s.turnBadgeText}>#{game.totalTurns+1}</Text></View></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scores}>{game.players.map((p,i)=><View key={p.id} style={[s.scoreChip,i===game.currentPlayerIndex&&s.activeChip]}><Text style={[s.chipName,i===game.currentPlayerIndex&&s.activeText]}>{p.name}</Text><Text style={[s.chipScore,i===game.currentPlayerIndex&&s.activeText]}>{p.score}</Text></View>)}</ScrollView>
+    <View style={s.counters}><View style={s.counterHalf}><Text style={s.counterLabel}>SAFE IN THE BANK</Text><Text style={s.counter}>{current.score}</Text></View><View style={s.divider}/><View style={s.counterHalf}><Text style={s.counterLabel}>AT RISK</Text><Text style={[s.counter,s.risk]}>{game.turnScore}</Text></View></View>
+    <View style={[s.arena,compact&&s.arenaCompact]} onLayout={layout} {...pan.panHandlers}><View style={s.halo}/><View style={s.floor}/><FlyingTurkey position={shown?.turkeyA??'gobbler'} size={turkeySize} xy={xy[0]} angle={angles[0]}/><FlyingTurkey position={shown?.turkeyB??'turkey_trot'} size={turkeySize} xy={xy[1]} angle={angles[1]}/><FeatherBurst burst={burst}/>
+      {game.status!=='animating'&&!result&&<View pointerEvents="none" style={s.prompt}><Text style={s.arrow}>↑</Text><Text style={s.promptTitle}>SWIPE UP TO TOSS</Text><Text style={s.hint}>Swipe harder or sideways to change the flight</Text></View>}
+      {drag.active&&<View pointerEvents="none" style={[s.aim,{height:clamp(Math.hypot(drag.x,drag.y)*.45,32,105),transform:[{translateX:drag.x*.25},{translateY:drag.y*.18},{rotate:`${Math.atan2(drag.y,drag.x)*180/Math.PI+90}deg`}]}]}/>}
+      {(game.status==='animating'||result)&&<View pointerEvents="none" style={[s.resultCard,result?.isPlucked&&s.danger,result?.isThanksgiving&&s.gold]}>{game.status==='animating'?<><Text style={s.flying}>AIRBORNE!</Text><Text style={s.hint}>The result lands with the turkeys</Text></>:result&&<><Text style={[s.resultTitle,result.isPlucked&&s.light]}>{result.title}</Text><Text style={[s.names,result.isPlucked&&s.lightMuted]}>{TURKEY_POSITIONS[result.turkeyA].name}  +  {TURKEY_POSITIONS[result.turkeyB].name}</Text><Text style={[s.points,result.isPlucked&&s.light]}>{result.isPlucked?'TURN SCORE LOST':`+${result.points}`}</Text></>}</View>}
+    </View>
+    <View style={s.actions}><GameButton title={game.status==='animating'?'TURKEYS IN FLIGHT…':'QUICK TOSS'} onPress={()=>launch()} disabled={game.status==='animating'}/><GameButton title={game.turnScore?`BANK ${game.turnScore} POINTS`:'BANK POINTS'} variant="secondary" onPress={bank} disabled={!game.turnScore||game.status==='animating'}/></View>
+  </Screen>;
 }
 
-const s = StyleSheet.create({
-  screen: { gap: 10 }, headerRow: { flexDirection: 'row', alignItems: 'center', minHeight: 54 }, heading: { flex: 1, alignItems: 'center' },
-  close: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(91,45,29,.08)', alignItems: 'center', justifyContent: 'center' }, closeText: { fontFamily: 'Nunito_400Regular', fontSize: 31, lineHeight: 33, color: C.brown },
-  turnBadge: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' }, turnBadgeText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: C.gold },
-  eyebrow: { fontFamily: 'Nunito_800ExtraBold', fontSize: 9, letterSpacing: 2, color: C.muted }, turn: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 27, lineHeight: 31, color: C.ink },
-  scores: { gap: 7, paddingVertical: 2, paddingHorizontal: 1 }, scoreChip: { minWidth: 82, paddingVertical: 6, paddingHorizontal: 11, borderRadius: 14, backgroundColor: 'rgba(255,255,255,.7)', borderWidth: 1.5, borderColor: C.line, alignItems: 'center' }, activeChip: { backgroundColor: C.brown, borderColor: C.brown }, chipName: { fontFamily: 'Nunito_700Bold', fontSize: 11, color: C.muted, maxWidth: 76 }, chipScore: { fontFamily: 'Baloo2_700Bold', fontSize: 20, lineHeight: 23, color: C.ink }, activeText: { color: C.white },
-  counters: { flexDirection: 'row', alignItems: 'center', minHeight: 72, backgroundColor: 'rgba(255,255,255,.88)', borderRadius: 20, paddingVertical: 5, borderWidth: 1.5, borderColor: C.line, shadowColor: C.brown, shadowOpacity: .07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }, counterHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' }, counterLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 9, lineHeight: 14, letterSpacing: 1.2, color: C.muted }, counter: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 34, lineHeight: 46, paddingTop: 5, marginTop: -3, color: C.brown }, risk: { color: C.red }, divider: { height: 44, width: 1, backgroundColor: C.line },
-  arena: { flex: 1, minHeight: 320, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,238,.55)', borderWidth: 1, borderColor: 'rgba(230,205,168,.65)' }, arenaCompact: { minHeight: 278 }, arenaHalo: { position: 'absolute', top: 20, width: 230, height: 230, borderRadius: 115, backgroundColor: 'rgba(247,204,108,.25)' },
-  table: { position: 'absolute', width: '116%', height: 76, bottom: 58, borderRadius: 100, backgroundColor: '#D99655', transform: [{ scaleY: .42 }] }, tableEdge: { position: 'absolute', width: '116%', height: 12, bottom: 81, backgroundColor: '#B96D36', opacity: .72 },
-  turkeys: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: -36 },
-  resultCard: { position: 'absolute', bottom: 12, minWidth: '78%', alignItems: 'center', backgroundColor: C.white, borderRadius: 17, paddingHorizontal: 18, paddingVertical: 8, borderWidth: 1.5, borderColor: C.line }, resultDanger: { backgroundColor: C.red, borderColor: C.redDark }, resultGold: { backgroundColor: '#FFF1B7', borderColor: C.orange },
-  resultTitle: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 21, lineHeight: 30, paddingTop: 3, color: C.brown }, names: { fontFamily: 'Nunito_700Bold', fontSize: 10, color: C.muted }, points: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 26, lineHeight: 35, paddingTop: 2, color: C.green }, lightText: { color: C.white }, lightMuted: { color: '#FFE6D8' },
-  ready: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 20, color: C.brown }, resultHint: { fontFamily: 'Nunito_700Bold', fontSize: 10, color: C.muted }, flying: { fontFamily: 'Baloo2_800ExtraBold', fontSize: 20, color: C.red, letterSpacing: 1.5 }, confetti: { position: 'absolute', top: 12, fontSize: 21, letterSpacing: 4 },
-  actions: { gap: 8 },
-});
+const s=StyleSheet.create({screen:{gap:10},headerRow:{flexDirection:'row',alignItems:'center',minHeight:54},heading:{flex:1,alignItems:'center'},close:{width:38,height:38,borderRadius:19,backgroundColor:'rgba(91,45,29,.08)',alignItems:'center',justifyContent:'center'},closeText:{fontFamily:'Nunito_400Regular',fontSize:31,lineHeight:33,color:C.brown},turnBadge:{width:38,height:38,borderRadius:19,backgroundColor:C.brown,alignItems:'center',justifyContent:'center'},turnBadgeText:{fontFamily:'Nunito_800ExtraBold',fontSize:11,color:C.gold},eyebrow:{fontFamily:'Nunito_800ExtraBold',fontSize:9,letterSpacing:2,color:C.muted},turn:{fontFamily:'Baloo2_800ExtraBold',fontSize:27,lineHeight:34,paddingTop:2,color:C.ink},scores:{gap:7,paddingVertical:2},scoreChip:{minWidth:82,paddingVertical:6,paddingHorizontal:11,borderRadius:14,backgroundColor:'rgba(255,255,255,.7)',borderWidth:1.5,borderColor:C.line,alignItems:'center'},activeChip:{backgroundColor:C.brown,borderColor:C.brown},chipName:{fontFamily:'Nunito_700Bold',fontSize:11,color:C.muted},chipScore:{fontFamily:'Baloo2_700Bold',fontSize:20,lineHeight:25,paddingTop:2,color:C.ink},activeText:{color:C.white},counters:{flexDirection:'row',minHeight:76,backgroundColor:'rgba(255,255,255,.88)',borderRadius:20,paddingVertical:6,borderWidth:1.5,borderColor:C.line},counterHalf:{flex:1,alignItems:'center',justifyContent:'center'},counterLabel:{fontFamily:'Nunito_800ExtraBold',fontSize:9,lineHeight:14,letterSpacing:1.2,color:C.muted},counter:{fontFamily:'Baloo2_800ExtraBold',fontSize:34,lineHeight:45,paddingTop:4,color:C.brown},risk:{color:C.red},divider:{height:44,width:1,backgroundColor:C.line,alignSelf:'center'},arena:{flex:1,minHeight:320,borderRadius:28,overflow:'hidden',backgroundColor:'rgba(255,250,238,.55)',borderWidth:1,borderColor:'rgba(230,205,168,.65)'},arenaCompact:{minHeight:278},halo:{position:'absolute',alignSelf:'center',top:20,width:230,height:230,borderRadius:115,backgroundColor:'rgba(247,204,108,.25)'},floor:{position:'absolute',left:0,right:0,bottom:92,height:5,backgroundColor:'#C77A3B',opacity:.75},physicsTurkey:{position:'absolute',left:0,top:0},prompt:{position:'absolute',alignSelf:'center',top:'18%',alignItems:'center'},arrow:{fontFamily:'Nunito_800ExtraBold',fontSize:42,lineHeight:45,color:C.orange},promptTitle:{fontFamily:'Baloo2_800ExtraBold',fontSize:18,color:C.brown},hint:{fontFamily:'Nunito_700Bold',fontSize:10,color:C.muted},aim:{position:'absolute',alignSelf:'center',bottom:95,width:4,borderRadius:4,backgroundColor:C.orange},resultCard:{position:'absolute',alignSelf:'center',bottom:10,minWidth:'78%',alignItems:'center',backgroundColor:C.white,borderRadius:17,paddingHorizontal:18,paddingVertical:8,borderWidth:1.5,borderColor:C.line},danger:{backgroundColor:C.red,borderColor:C.redDark},gold:{backgroundColor:'#FFF1B7',borderColor:C.orange},resultTitle:{fontFamily:'Baloo2_800ExtraBold',fontSize:21,lineHeight:29,paddingTop:3,color:C.brown},names:{fontFamily:'Nunito_700Bold',fontSize:10,color:C.muted},points:{fontFamily:'Baloo2_800ExtraBold',fontSize:26,lineHeight:34,paddingTop:2,color:C.green},light:{color:C.white},lightMuted:{color:'#FFE6D8'},flying:{fontFamily:'Baloo2_800ExtraBold',fontSize:20,lineHeight:28,paddingTop:2,color:C.red,letterSpacing:1.5},featherOrigin:{position:'absolute',left:'50%',top:'48%'},feather:{position:'absolute',fontSize:25,color:'#A75C35'},actions:{gap:8}});
