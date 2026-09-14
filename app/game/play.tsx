@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
@@ -12,6 +12,8 @@ import { useGameStore } from '@/store/gameStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { TurkeyPosition } from '@/types/turkey';
 import { useGameAudio } from '@/components/AudioProvider';
+import { generateTurkeyToss } from '@/game/random';
+import { calculateTossScore } from '@/game/scoring';
 
 function TossingTurkey({ side, position, tossing, size }: { side: 1 | -1; position: TurkeyPosition; tossing: boolean; size: number }) {
   const y = useSharedValue(0), rotation = useSharedValue(0), x = useSharedValue(0), scale = useSharedValue(1);
@@ -29,28 +31,40 @@ function TossingTurkey({ side, position, tossing, size }: { side: 1 | -1; positi
 export default function Play() {
   const game = useGameStore();
   const settings = useSettingsStore();
-  const { play: playAudio } = useGameAudio();
+  const { play: playAudio, playGobble } = useGameAudio();
   const { height, width } = useWindowDimensions();
   const current = game.players[game.currentPlayerIndex];
   const result = game.lastToss;
+  const [displayedToss, setDisplayedToss] = useState(result ? { turkeyA: result.turkeyA, turkeyB: result.turkeyB } : null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const compact = height < 760;
   const turkeySize = Math.min(compact ? 136 : 154, width * 0.39);
 
   useEffect(() => { if (game.status === 'finished') router.replace('/game/winner'); }, [game.status]);
+  useEffect(() => { if (!result) setDisplayedToss(null); }, [result]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const toss = () => {
-    playAudio('toss');
+    const generated = generateTurkeyToss();
+    const pendingResult = calculateTossScore(generated.turkeyA, generated.turkeyB);
+    playGobble();
     if (settings.haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     game.beginToss();
-    setTimeout(() => {
-      game.resolveToss();
-      const landed = useGameStore.getState().lastToss;
-      if (landed) playAudio(landed.isPlucked ? 'plucked' : landed.isThanksgiving ? 'thanksgiving' : 'land');
-      if (!settings.haptics || !landed) return;
-      if (landed.isPlucked) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      else if (landed.isThanksgiving) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      else if (landed.points >= 10) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }, settings.animations ? 1150 : 120);
+    const landingDelay = settings.animations ? 1100 : 40;
+    const revealDelay = settings.animations ? 1300 : 100;
+    timers.current.push(setTimeout(() => {
+      setDisplayedToss(generated);
+      if (!pendingResult.isPlucked && !pendingResult.isThanksgiving) playAudio('land');
+    }, landingDelay));
+    timers.current.push(setTimeout(() => {
+      game.resolveToss(pendingResult);
+      if (pendingResult.isPlucked) playAudio('plucked');
+      if (pendingResult.isThanksgiving) playAudio('thanksgiving');
+      if (!settings.haptics) return;
+      if (pendingResult.isPlucked) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      else if (pendingResult.isThanksgiving) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      else if (pendingResult.points >= 10) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }, revealDelay));
   };
 
   const bank = () => { playAudio('bank'); game.bank(); };
@@ -76,8 +90,8 @@ export default function Play() {
       <View style={[s.arena, compact && s.arenaCompact]}>
         <View style={s.arenaHalo} /><View style={s.table} /><View style={s.tableEdge} />
         <View style={s.turkeys}>
-          <TossingTurkey side={-1} tossing={game.status === 'animating'} position={result?.turkeyA ?? 'gobbler'} size={turkeySize} />
-          <TossingTurkey side={1} tossing={game.status === 'animating'} position={result?.turkeyB ?? 'turkey_trot'} size={turkeySize} />
+          <TossingTurkey side={-1} tossing={game.status === 'animating' && settings.animations} position={displayedToss?.turkeyA ?? 'gobbler'} size={turkeySize} />
+          <TossingTurkey side={1} tossing={game.status === 'animating' && settings.animations} position={displayedToss?.turkeyB ?? 'turkey_trot'} size={turkeySize} />
         </View>
         <View style={[s.resultCard, result?.isPlucked && s.resultDanger, result?.isThanksgiving && s.resultGold]}>
           {game.status === 'animating' ? <><Text style={s.flying}>FLYING FOWL</Text><Text style={s.resultHint}>Hold onto your feathers…</Text></> : result ? <><Text style={[s.resultTitle, result.isPlucked && s.lightText]}>{result.title}</Text><Text style={[s.names, result.isPlucked && s.lightMuted]}>{TURKEY_POSITIONS[result.turkeyA].name}  +  {TURKEY_POSITIONS[result.turkeyB].name}</Text><Text style={[s.points, result.isPlucked && s.lightText]}>{result.isPlucked ? 'TURN SCORE LOST' : `+${result.points}`}</Text></> : <><Text style={s.ready}>READY TO TOSS?</Text><Text style={s.resultHint}>Land points. Bank before you're plucked.</Text></>}
