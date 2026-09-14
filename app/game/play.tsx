@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { Animated, LayoutChangeEvent, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Screen } from '@/components/Screen';
 import { GameButton } from '@/components/GameButton';
 import { AIRBORNE_TURKEY_ASSETS, Turkey } from '@/components/Turkey';
-import { TurkeyTrackIcon } from '@/components/TurkeyTrackIcon';
+import { BottomNavBar } from '@/components/BottomNavBar';
 import { C } from '@/constants/colours';
 import { TURKEY_POSITIONS } from '@/constants/turkeyPositions';
 import { useGameStore } from '@/store/gameStore';
@@ -28,13 +27,11 @@ function FeatherBurst({ burst }: { burst:number }) {
 
 const [AIRBORNE_UP,AIRBORNE_DOWN]=AIRBORNE_TURKEY_ASSETS;
 
-function FlyingTurkey({position,size,xy,angle,flying,landed}:{position:TurkeyPosition;size:number;xy:Animated.ValueXY;angle:Animated.Value;flying:boolean;landed:boolean}){
+function FlyingTurkey({position,size,xy,angle,flying,landed,burst}:{position:TurkeyPosition;size:number;xy:Animated.ValueXY;angle:Animated.Value;flying:boolean;landed:boolean;burst:number}){
   const flap=useRef(new Animated.Value(0)).current;
   useEffect(()=>{let loop:Animated.CompositeAnimation|undefined;if(flying){loop=Animated.loop(Animated.sequence([Animated.timing(flap,{toValue:1,duration:85,useNativeDriver:true}),Animated.timing(flap,{toValue:0,duration:115,useNativeDriver:true})]));loop.start();}else{flap.stopAnimation();flap.setValue(0);}return()=>loop?.stop();},[flying,flap]);
-  return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}>{flying&&!landed?<View style={s.airborneFrames}><Animated.Image source={AIRBORNE_UP} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[1,1,0,0]})}]}/><Animated.Image source={AIRBORNE_DOWN} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[0,0,1,1]})}]}/></View>:<Turkey position={position} size={size}/>}</Animated.View>;
+  return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}>{flying&&!landed?<View style={s.airborneFrames}><Animated.Image source={AIRBORNE_UP} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[1,1,0,0]})}]}/><Animated.Image source={AIRBORNE_DOWN} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[0,0,1,1]})}]}/></View>:<Turkey position={position} size={size}/>}<FeatherBurst burst={burst}/></Animated.View>;
 }
-
-function GameTabs(){const tabs=[{label:'Home',icon:null,path:'/' as const},{label:'How to Play',icon:'trail-sign-outline' as const,path:'/(tabs)/how-to-play' as const},{label:'Turkeydex',icon:'library-outline' as const,path:'/(tabs)/turkeydex' as const},{label:'Settings',icon:'options-outline' as const,path:'/(tabs)/settings' as const}];return <View style={[s.tabs,{height:62,marginBottom:-22,paddingTop:4,paddingBottom:13}]}>{tabs.map(tab=><Pressable key={tab.label} style={s.tab} onPress={()=>router.replace(tab.path)}>{tab.icon?<Ionicons name={tab.icon} size={20} color={C.muted}/>:<TurkeyTrackIcon color={C.muted} size={20}/>}<Text style={s.tabLabel}>{tab.label}</Text></Pressable>)}</View>}
 
 export default function Play(){
   const game=useGameStore(),settings=useSettingsStore(),{play:playAudio,playGobble}=useGameAudio();
@@ -69,13 +66,13 @@ export default function Play(){
     <View style={s.headerRow}><Pressable onPress={()=>router.replace('/')} hitSlop={12} style={s.close}><Text style={s.closeText}>×</Text></Pressable><View style={s.heading}><Text style={s.eyebrow}>FIRST TO {game.targetScore}</Text><Text style={s.turn}>{current.name.toUpperCase()}'S TURN</Text></View><View style={s.turnBadge}><Text style={s.turnBadgeText}>#{game.totalTurns+1}</Text></View></View>
     <ScrollView style={s.scoreScroller} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.scores}>{game.players.map((p,i)=><View key={p.id} style={[s.scoreChip,i===game.currentPlayerIndex&&s.activeChip]}><Text style={[s.chipName,i===game.currentPlayerIndex&&s.activeText]}>{p.name}</Text><Text style={[s.chipScore,i===game.currentPlayerIndex&&s.activeText]}>{p.score}</Text></View>)}</ScrollView>
     <View style={s.counters}><View style={s.counterHalf}><Text style={s.counterLabel}>SAFE IN THE BANK</Text><Text style={s.counter}>{current.score}</Text></View><View style={s.divider}/><View style={s.counterHalf}><Text style={s.counterLabel}>AT RISK</Text><Text style={[s.counter,s.risk]}>{game.turnScore}</Text></View></View>
-    <View style={[s.arena,compact&&s.arenaCompact]} onLayout={layout} {...pan.panHandlers}><View style={s.halo}/><View style={s.ground}><View style={s.grass}/><View style={s.grassBlades}>{Array.from({length:38},(_,i)=><View key={i} style={[s.blade,{transform:[{rotate:i%3===0?'-25deg':i%3===1?'18deg':'0deg'}]}]}/>)}</View></View><FlyingTurkey flying={game.status==='animating'} landed={landed[0]} position={shown?.turkeyA??'gobbler'} size={turkeySize} xy={xy[0]} angle={angles[0]}/><FlyingTurkey flying={game.status==='animating'} landed={landed[1]} position={shown?.turkeyB??'turkey_trot'} size={turkeySize} xy={xy[1]} angle={angles[1]}/><FeatherBurst burst={burst}/>
+    <View style={[s.arena,compact&&s.arenaCompact]} onLayout={layout} {...pan.panHandlers}><View style={s.halo}/><View style={s.ground}><View style={s.grass}/><View style={s.grassBlades}>{Array.from({length:38},(_,i)=><View key={i} style={[s.blade,{transform:[{rotate:i%3===0?'-25deg':i%3===1?'18deg':'0deg'}]}]}/>)}</View></View><FlyingTurkey flying={game.status==='animating'} landed={landed[0]} burst={burst} position={shown?.turkeyA??'gobbler'} size={turkeySize} xy={xy[0]} angle={angles[0]}/><FlyingTurkey flying={game.status==='animating'} landed={landed[1]} burst={burst} position={shown?.turkeyB??'turkey_trot'} size={turkeySize} xy={xy[1]} angle={angles[1]}/>
       {game.status!=='animating'&&!result&&<View pointerEvents="none" style={s.prompt}><Text style={s.arrow}>↑</Text><Text style={s.promptTitle}>SWIPE UP TO TOSS</Text><Text style={s.hint}>Swipe harder or sideways to change the flight</Text></View>}
       {drag.active&&<View pointerEvents="none" style={[s.aim,{height:clamp(Math.hypot(drag.x,drag.y)*.45,32,105),transform:[{translateX:drag.x*.25},{translateY:drag.y*.18},{rotate:`${Math.atan2(drag.y,drag.x)*180/Math.PI+90}deg`}]}]}/>}
       {(game.status==='animating'||result)&&<View pointerEvents="none" style={[s.resultCard,result?.isPlucked&&s.danger,result?.isThanksgiving&&s.gold]}>{game.status==='animating'?<><Text style={s.flying}>AIRBORNE!</Text><Text style={s.hint}>The result lands with the turkeys</Text></>:result&&<><Text style={[s.resultTitle,result.isPlucked&&s.light]}>{result.title}</Text><Text style={[s.names,result.isPlucked&&s.lightMuted]}>{TURKEY_POSITIONS[result.turkeyA].name}  +  {TURKEY_POSITIONS[result.turkeyB].name}</Text><Text style={[s.points,result.isPlucked&&s.light]}>{result.isPlucked?'TURN SCORE LOST':`+${result.points}`}</Text></>}</View>}
     </View>
     {!!game.turnScore&&<View style={s.actions}><GameButton style={s.compactButton} title={`BANK ${game.turnScore}`} variant="secondary" onPress={bank} disabled={game.status==='animating'}/></View>}
-    <GameTabs/>
+    <BottomNavBar embedded/>
   </Screen>;
 }
 
