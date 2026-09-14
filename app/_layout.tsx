@@ -14,5 +14,5 @@ export default function Layout() {
   const [artReady, setArtReady] = useState(false);
   useEffect(() => { Asset.loadAsync(Object.values(TURKEY_ASSETS)).finally(() => setArtReady(true)); }, []);
   if (!balooReady || !nunitoReady || !artReady) return <View />;
-  return <AudioProvider><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false, animation: 'fade' }} /></AudioProvider>;
+  return <AudioProvider><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false, animation: 'fade' }}><Stack.Screen name="game/play" options={{ gestureEnabled: false }} /></Stack></AudioProvider>;
 }
