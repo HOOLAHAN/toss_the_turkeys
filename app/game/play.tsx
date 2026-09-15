@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import { Image } from 'expo-image';
 import { Animated, LayoutChangeEvent, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Screen } from '@/components/Screen';
@@ -45,9 +46,9 @@ const weatherFx=StyleSheet.create({layer:{...StyleSheet.absoluteFill,zIndex:2,ov
 const [AIRBORNE_UP,AIRBORNE_DOWN]=AIRBORNE_TURKEY_ASSETS;
 
 function FlyingTurkey({position,size,xy,angle,flying,landed,burst}:{position:TurkeyPosition;size:number;xy:Animated.ValueXY;angle:Animated.Value;flying:boolean;landed:boolean;burst:number}){
-  const flap=useRef(new Animated.Value(0)).current;
-  useEffect(()=>{let loop:Animated.CompositeAnimation|undefined;if(flying){loop=Animated.loop(Animated.sequence([Animated.timing(flap,{toValue:1,duration:85,useNativeDriver:true}),Animated.timing(flap,{toValue:0,duration:115,useNativeDriver:true})]));loop.start();}else{flap.stopAnimation();flap.setValue(0);}return()=>loop?.stop();},[flying,flap]);
-  return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}>{flying&&!landed?<View style={s.airborneFrames}><Animated.Image source={AIRBORNE_UP} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[1,1,0,0]})}]}/><Animated.Image source={AIRBORNE_DOWN} resizeMode="contain" style={[s.airborneImage,{opacity:flap.interpolate({inputRange:[0,.45,.55,1],outputRange:[0,0,1,1]})}]}/></View>:<Turkey position={position} size={size}/>}<FeatherBurst burst={burst}/><LandingPuff landed={landed}/></Animated.View>;
+  const [flapDown,setFlapDown]=useState(false);
+  useEffect(()=>{setFlapDown(false);if(!flying||landed)return;const timer=setInterval(()=>setFlapDown(value=>!value),100);return()=>clearInterval(timer);},[flying,landed]);
+  return <Animated.View pointerEvents="none" style={[s.physicsTurkey,{width:size,height:size,transform:[{translateX:xy.x},{translateY:xy.y},{rotate:angle.interpolate({inputRange:[-2000,2000],outputRange:['-2000deg','2000deg']})}]}]}>{flying&&!landed?<View style={s.airborneFrames}><Image source={flapDown?AIRBORNE_DOWN:AIRBORNE_UP} contentFit="contain" cachePolicy="memory-disk" transition={0} style={s.airborneImage}/></View>:<Turkey position={position} size={size}/>}<FeatherBurst burst={burst}/><LandingPuff landed={landed}/></Animated.View>;
 }
 
 export default function Play(){
