@@ -4,6 +4,7 @@
     "slug": "toss-the-turkeys",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/branding/app-icon.png",
     "scheme": "tossturkeys",
     "userInterfaceStyle": "light",
     "plugins": [
@@ -12,14 +13,24 @@
       "expo-status-bar",
       "expo-audio",
       "expo-asset",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/app-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7E8C8"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F7E8C8"
+        "foregroundImage": "./assets/branding/app-icon.png",
+        "backgroundColor": "#5B2D1D"
       }
     },
     "ios": {
