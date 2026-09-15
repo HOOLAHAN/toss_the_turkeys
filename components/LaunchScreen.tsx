@@ -1,11 +1,12 @@
 import { ActivityIndicator, ImageBackground, StyleSheet, Text, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { C } from '@/constants/colours';
 
 const SPLASH_ART = require('@/assets/branding/splash-farm.png');
 
 export function LaunchScreen() {
   return (
-    <ImageBackground source={SPLASH_ART} resizeMode="cover" style={styles.fill}>
+    <ImageBackground source={SPLASH_ART} resizeMode="cover" style={styles.fill} onLoadEnd={() => SplashScreen.hideAsync()} onError={() => SplashScreen.hideAsync()}>
       <View style={styles.skyFade} />
       <View style={styles.brand}>
         <Text style={styles.kicker}>THE PUSH-YOUR-LUCK PARTY GAME</Text>

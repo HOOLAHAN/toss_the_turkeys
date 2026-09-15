@@ -17,9 +17,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/branding/app-icon.png",
-          "imageWidth": 220,
-          "resizeMode": "contain",
+          "image": "./assets/branding/splash-farm.png",
+          "resizeMode": "cover",
           "backgroundColor": "#F7E8C8"
         }
       ]
