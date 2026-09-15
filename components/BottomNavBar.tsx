@@ -12,13 +12,13 @@ function TurkeyMark({ active }: { active: boolean }) {
 const items=[
   {key:'home',label:'Home',path:'/' as const},
   {key:'rules',label:'How to Play',path:'/(tabs)/how-to-play' as const,icon:'trail-sign-outline' as const,activeIcon:'trail-sign' as const},
-  {key:'dex',label:'Turkeydex',path:'/(tabs)/turkeydex' as const,icon:'library-outline' as const,activeIcon:'library' as const},
+  {key:'trophies',label:'Trophy Coop',path:'/(tabs)/trophy-coop' as const,icon:'trophy-outline' as const,activeIcon:'trophy' as const},
   {key:'settings',label:'Settings',path:'/(tabs)/settings' as const,icon:'options-outline' as const,activeIcon:'options' as const},
 ];
 
 export function BottomNavBar({ embedded=false }: { embedded?: boolean }) {
   const path=usePathname(),insets=useSafeAreaInsets();
-  const active=path.includes('how-to-play')?'rules':path.includes('turkeydex')?'dex':path.includes('settings')?'settings':path.includes('/game/')?'game':'home';
+  const active=path.includes('how-to-play')?'rules':path.includes('trophy-coop')?'trophies':path.includes('settings')?'settings':path.includes('/game/')?'game':'home';
   const embeddedInset=Math.max(0,insets.bottom-7);
   return <View style={[s.safeDock,embedded?{height:62,marginBottom:-embeddedInset}:{height:75+insets.bottom,paddingBottom:13}]}><View style={[s.pill,!embedded&&s.tabPill]}>{items.map(item=>{const selected=active===item.key;return <Pressable key={item.key} accessibilityRole="tab" accessibilityState={{selected}} onPress={()=>router.replace(item.path)} style={[s.item,selected&&s.selected]}>{item.key==='home'?<TurkeyMark active={selected}/>:<Ionicons name={selected?item.activeIcon:item.icon} size={20} color={selected?C.red:C.muted}/>}<Text style={[s.label,selected&&s.activeLabel]}>{item.label}</Text></Pressable>})}</View></View>;
 }

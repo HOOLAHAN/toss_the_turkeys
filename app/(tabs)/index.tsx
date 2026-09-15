@@ -25,7 +25,7 @@ export default function Home() {
       </View>
       <View style={s.actions}>
         {hasGame?<View style={s.gameChoices}><GameButton style={s.choiceButton} title="CONTINUE" onPress={() => router.push('/game/play')} /><GameButton style={s.choiceButton} variant="secondary" title="NEW GAME" onPress={() => router.push('/game/setup')} /></View>:<GameButton title="PLAY" onPress={() => router.push('/game/setup')} />}
-        <Text style={s.tabHint}>Rules, Turkeydex and settings are always one tap away below.</Text>
+        <Text style={s.tabHint}>Rules, trophies and settings are always one tap away below.</Text>
       </View>
     </Screen>
   );
