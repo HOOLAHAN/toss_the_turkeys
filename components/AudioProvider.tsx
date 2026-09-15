@@ -8,6 +8,8 @@ const AudioContext = createContext<{ play: (sound: GameSound) => void; playGobbl
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const enabled = useSettingsStore(state => state.sound);
+  const musicEnabled = useSettingsStore(state => state.music);
+  const background = useAudioPlayer(require('../assets/sounds/farm-background.mp3'));
   const effects: Record<GameSound, Player> = {
     land: useAudioPlayer(require('../assets/sounds/land.wav')),
     bank: useAudioPlayer(require('../assets/sounds/bank.wav')),
@@ -24,7 +26,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   ];
   const previousGobble = useRef(-1);
 
-  useEffect(() => { setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(() => undefined); }, []);
+  useEffect(() => { setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(() => undefined); background.loop=true;background.volume=.16; }, [background]);
+  useEffect(() => { if(musicEnabled) background.play(); else background.pause(); }, [background,musicEnabled]);
   const replay = (player: Player) => { player.seekTo(0).then(() => player.play()).catch(() => undefined); };
   const play = (sound: GameSound) => { if (enabled) replay(effects[sound]); };
   const playGobble = () => {
