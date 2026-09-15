@@ -31,11 +31,26 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/app-icon.png",
         "backgroundColor": "#5B2D1D"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.iainhoolahan.tosstheturkeys",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e50976b8-bb4f-4e28-b0a7-91b66c17cf68"
+      }
     }
   }
 }
