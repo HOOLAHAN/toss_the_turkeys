@@ -7,6 +7,7 @@ import { C } from '@/constants/colours';
 import { SUPPORT_LINKS } from '@/constants/support';
 
 const links=[
+  {title:'Toss the Turkeys Website',copy:'Visit the official Toss the Turkeys website.',icon:'globe-outline' as const,url:SUPPORT_LINKS.home},
   {title:'Help & Support',copy:'Questions, troubleshooting and contact details.',icon:'help-buoy' as const,url:SUPPORT_LINKS.support},
   {title:'Privacy Policy',copy:'What stays on your device and how privacy works.',icon:'shield-checkmark' as const,url:SUPPORT_LINKS.privacy},
   {title:'Terms of Use',copy:'The straightforward rules for using the game.',icon:'document-text' as const,url:SUPPORT_LINKS.terms},
