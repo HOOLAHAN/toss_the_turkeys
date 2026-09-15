@@ -27,12 +27,14 @@
       "typedRoutes": true
     },
     "android": {
+      "package": "com.iainhoolahan.tosstheturkeys",
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/app-icon.png",
         "backgroundColor": "#5B2D1D"
       }
     },
     "ios": {
+      "bundleIdentifier": "com.iainhoolahan.tosstheturkeys",
       "supportsTablet": true
     }
   }
