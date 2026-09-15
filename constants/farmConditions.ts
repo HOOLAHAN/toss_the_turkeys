@@ -12,5 +12,5 @@ export const FARM_CONDITIONS:FarmCondition[]=[
   {id:'fox',name:'Fox Alert',icon:'🦊',description:'Risky ground: scoring tosses earn +5.',tint:'#D8733D',wind:35,bounce:.56},
 ];
 
-export function farmConditionForTurn(totalTurns:number,playerCount:number,enabled=true){if(!enabled)return FARM_CONDITIONS[0];const round=Math.floor(totalTurns/Math.max(1,playerCount));return FARM_CONDITIONS[round%FARM_CONDITIONS.length];}
+export function farmConditionForTurn(totalTurns:number,_playerCount:number,enabled=true){if(!enabled)return FARM_CONDITIONS[0];return FARM_CONDITIONS[totalTurns%FARM_CONDITIONS.length];}
 export function applyFarmCondition(result:TossScoreResult,condition:FarmCondition){if(result.isPlucked)return result;if(condition.id==='harvest'){const bonus=[result.turkeyA,result.turkeyB].filter(p=>p==='jiblets'||p==='wattle_wobble').length*5;return bonus?{...result,points:result.points+bonus}:result;}if(condition.id==='golden'&&result.points>0)return {...result,points:result.points+2};if(condition.id==='fox'&&result.points>0)return {...result,points:result.points+5};return result;}

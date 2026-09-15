@@ -11,7 +11,7 @@ The position picker normalises the configured weights before choosing each of th
 
 This is intentionally volatile: most players should regularly face a meaningful bank-or-risk decision by their third or fourth toss.
 
-Condition bonuses are deliberately smaller than the 4.72-point clear-weather baseline:
+Enabled conditions rotate after every completed player turn. Condition bonuses are deliberately smaller than the 4.72-point clear-weather baseline:
 
 - Harvest Festival: +5 for each Jiblets or Wattle Wobble result
 - Golden Hour: +2 when a toss scores
