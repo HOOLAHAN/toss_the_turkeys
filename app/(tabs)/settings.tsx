@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Turkey } from '@/components/Turkey';
@@ -20,6 +21,7 @@ export default function Settings(){
     <Text style={s.section}>LUCK REPORT</Text>
     <View style={s.report}><View><Text style={s.reportLabel}>FAVOURITE LANDING</Text><Text style={s.reportValue}>{stats.totalTosses?landingNames[favourite]:'No tosses yet'}</Text></View><View style={s.rate}><Text style={s.rateValue}>{pluckRate}%</Text><Text style={s.rateLabel}>PLUCK RATE</Text></View></View>
     <View style={s.stats}><Stat icon="game-controller" label="GAMES" value={stats.gamesPlayed}/><Stat icon="repeat" label="TOSSES" value={stats.totalTosses}/><Stat icon="star" label="POINTS" value={stats.totalPointsScored}/><Stat icon="alert-circle" label="PLUCKED" value={stats.pluckedCount}/><Stat icon="trending-up" label="BEST TURN" value={stats.highestTurnScore}/><Stat icon="trophy" label="BEST TOSS" value={stats.highestSingleTossScore}/></View>
+    <Pressable onPress={()=>router.push('/trophy-coop')} style={{minHeight:54,borderRadius:16,backgroundColor:'#FFF1D7',borderWidth:1.5,borderColor:C.line,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:10,marginBottom:5}}><View style={{width:36,height:36,borderRadius:18,backgroundColor:C.gold,alignItems:'center',justifyContent:'center'}}><Ionicons name="trophy" size={19} color={C.brown}/></View><View style={{flex:1}}><Text style={{fontFamily:'Baloo2_800ExtraBold',fontSize:14,lineHeight:18,paddingTop:2,color:C.brown}}>TROPHY COOP</Text><Text style={{fontFamily:'Nunito_700Bold',fontSize:8,color:C.muted}}>Achievements, rare finds and barnyard glory</Text></View><Ionicons name="chevron-forward" size={19} color={C.muted}/></Pressable>
   </Screen>;
 }
 
